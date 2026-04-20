@@ -1,0 +1,77 @@
+name: Test and deploy
+
+on:
+  push:
+    branches: [main, staging]
+  pull_request:
+    branches: [main, staging]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: PHPUnit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          tools: composer:v2
+
+      - name: Install Composer dependencies
+        run: composer install --no-interaction --prefer-dist
+
+      - name: Run PHPUnit
+        run: vendor/bin/phpunit
+
+  deploy_production:
+    name: Deploy to production (main)
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Record commit on the build that will be deployed
+        run: printf '%s' "$GITHUB_SHA" > wp-content/plugins/inmotion-ci-cd-poc/includes/deploy-build.txt
+
+      - name: Deploy plugin
+        uses: ./.github/actions/deploy-inmotion-plugin
+        with:
+          ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }}
+          ssh_host: ${{ secrets.SSH_HOST }}
+          ssh_user: ${{ secrets.SSH_USER }}
+          ssh_remote_plugin_path: ${{ secrets.SSH_REMOTE_PLUGIN_PATH }}
+          wordpress_root: ${{ vars.WORDPRESS_ROOT }}
+          wp_cli_bin: ${{ vars.WP_CLI_BIN }}
+
+  deploy_staging:
+    name: Deploy to staging (staging branch)
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/staging'
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Record commit on the build that will be deployed
+        run: printf '%s' "$GITHUB_SHA" > wp-content/plugins/inmotion-ci-cd-poc/includes/deploy-build.txt
+
+      - name: Deploy plugin
+        uses: ./.github/actions/deploy-inmotion-plugin
+        with:
+          ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }}
+          ssh_host: ${{ secrets.SSH_HOST }}
+          ssh_user: ${{ secrets.SSH_USER }}
+          ssh_remote_plugin_path: ${{ secrets.SSH_REMOTE_PLUGIN_PATH }}
+          wordpress_root: ${{ vars.WORDPRESS_ROOT }}
+          wp_cli_bin: ${{ vars.WP_CLI_BIN }}

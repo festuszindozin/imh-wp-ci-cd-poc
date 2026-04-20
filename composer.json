@@ -1,0 +1,11 @@
+{
+  "name": "inmotion/ci-cd-wordpress-poc",
+  "description": "Proof of concept: WordPress plugin deployed from GitHub Actions to InMotion Cloud",
+  "license": "MIT",
+  "require-dev": {
+    "phpunit/phpunit": "^10.5"
+  },
+  "config": {
+    "sort-packages": true
+  }
+}

@@ -1,0 +1,61 @@
+name: Deploy InMotion CI/CD PoC plugin
+description: Rsync the plugin over SSH and optionally activate it with WP-CLI.
+
+inputs:
+  ssh_private_key:
+    description: Private key PEM used only for deployment
+    required: true
+  ssh_host:
+    required: true
+  ssh_user:
+    required: true
+  ssh_remote_plugin_path:
+    description: Absolute path to the plugin directory on the server (no trailing slash)
+    required: true
+  wordpress_root:
+    description: Absolute path to WordPress root for WP-CLI (--path). Leave empty to skip activation.
+    required: false
+    default: ''
+  wp_cli_bin:
+    description: WP-CLI binary name or path on the remote (default wp)
+    required: false
+    default: 'wp'
+
+runs:
+  using: composite
+  steps:
+    - name: Start ssh-agent
+      uses: webfactory/ssh-agent@v0.9.0
+      with:
+        ssh-private-key: ${{ inputs.ssh_private_key }}
+
+    - name: Trust host key and rsync
+      shell: bash
+      env:
+        SSH_HOST: ${{ inputs.ssh_host }}
+        SSH_USER: ${{ inputs.ssh_user }}
+        REMOTE_PLUGIN_PATH: ${{ inputs.ssh_remote_plugin_path }}
+      run: |
+        set -euo pipefail
+        mkdir -p ~/.ssh
+        ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts
+        rsync -avzr --delete \
+          wp-content/plugins/inmotion-ci-cd-poc/ \
+          "${SSH_USER}@${SSH_HOST}:${REMOTE_PLUGIN_PATH}/"
+
+    - name: Activate plugin (WP-CLI, optional)
+      shell: bash
+      env:
+        SSH_HOST: ${{ inputs.ssh_host }}
+        SSH_USER: ${{ inputs.ssh_user }}
+        WORDPRESS_ROOT: ${{ inputs.wordpress_root }}
+        WP_CLI_BIN: ${{ inputs.wp_cli_bin }}
+      run: |
+        set -euo pipefail
+        if [ -z "${WORDPRESS_ROOT}" ]; then
+          echo "wordpress_root not set; skipping WP-CLI activate."
+          exit 0
+        fi
+        BIN="${WP_CLI_BIN:-wp}"
+        REMOTE="${SSH_USER}@${SSH_HOST}"
+        ssh -o BatchMode=yes "$REMOTE" "${BIN} plugin activate inmotion-ci-cd-poc --path=${WORDPRESS_ROOT}"
