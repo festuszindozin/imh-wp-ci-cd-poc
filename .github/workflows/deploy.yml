@@ -43,10 +43,36 @@ jobs:
       - name: Record commit on the build that will be deployed
         run: printf '%s' "$GITHUB_SHA" > wp-content/plugins/inmotion-ci-cd-poc/includes/deploy-build.txt
 
-      - name: Deploy plugin
+      - name: Require SSH secrets (before loading key)
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_REMOTE_PLUGIN_PATH: ${{ secrets.SSH_REMOTE_PLUGIN_PATH }}
+        run: |
+          set -euo pipefail
+          missing=0
+          if [ -z "${SSH_PRIVATE_KEY}" ]; then
+            echo "::error::SSH_PRIVATE_KEY is empty. Add it under Settings → Secrets and variables → Actions, or under Environments → production → Environment secrets. Paste the full PEM including BEGIN/END lines."
+            missing=1
+          fi
+          if [ -z "${SSH_HOST}" ]; then echo "::error::SSH_HOST is empty."; missing=1; fi
+          if [ -z "${SSH_USER}" ]; then echo "::error::SSH_USER is empty."; missing=1; fi
+          if [ -z "${SSH_REMOTE_PLUGIN_PATH}" ]; then echo "::error::SSH_REMOTE_PLUGIN_PATH is empty."; missing=1; fi
+          if [ "$missing" -ne 0 ]; then exit 1; fi
+          if ! printf '%s' "${SSH_PRIVATE_KEY}" | grep -q 'BEGIN'; then
+            echo "::error::SSH_PRIVATE_KEY does not look like a PEM key (missing BEGIN line)."
+            exit 1
+          fi
+
+      - name: Load SSH deploy key into agent
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Deploy plugin (rsync + optional WP-CLI)
         uses: ./.github/actions/deploy-inmotion-plugin
         with:
-          ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }}
           ssh_host: ${{ secrets.SSH_HOST }}
           ssh_user: ${{ secrets.SSH_USER }}
           ssh_remote_plugin_path: ${{ secrets.SSH_REMOTE_PLUGIN_PATH }}
@@ -66,10 +92,36 @@ jobs:
       - name: Record commit on the build that will be deployed
         run: printf '%s' "$GITHUB_SHA" > wp-content/plugins/inmotion-ci-cd-poc/includes/deploy-build.txt
 
-      - name: Deploy plugin
+      - name: Require SSH secrets (before loading key)
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_REMOTE_PLUGIN_PATH: ${{ secrets.SSH_REMOTE_PLUGIN_PATH }}
+        run: |
+          set -euo pipefail
+          missing=0
+          if [ -z "${SSH_PRIVATE_KEY}" ]; then
+            echo "::error::SSH_PRIVATE_KEY is empty. Add it under Settings → Secrets and variables → Actions, or under Environments → staging → Environment secrets."
+            missing=1
+          fi
+          if [ -z "${SSH_HOST}" ]; then echo "::error::SSH_HOST is empty."; missing=1; fi
+          if [ -z "${SSH_USER}" ]; then echo "::error::SSH_USER is empty."; missing=1; fi
+          if [ -z "${SSH_REMOTE_PLUGIN_PATH}" ]; then echo "::error::SSH_REMOTE_PLUGIN_PATH is empty."; missing=1; fi
+          if [ "$missing" -ne 0 ]; then exit 1; fi
+          if ! printf '%s' "${SSH_PRIVATE_KEY}" | grep -q 'BEGIN'; then
+            echo "::error::SSH_PRIVATE_KEY does not look like a PEM key (missing BEGIN line)."
+            exit 1
+          fi
+
+      - name: Load SSH deploy key into agent
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Deploy plugin (rsync + optional WP-CLI)
         uses: ./.github/actions/deploy-inmotion-plugin
         with:
-          ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }}
           ssh_host: ${{ secrets.SSH_HOST }}
           ssh_user: ${{ secrets.SSH_USER }}
           ssh_remote_plugin_path: ${{ secrets.SSH_REMOTE_PLUGIN_PATH }}

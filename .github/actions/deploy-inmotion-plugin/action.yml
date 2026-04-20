@@ -1,10 +1,7 @@
 name: Deploy InMotion CI/CD PoC plugin
-description: Rsync the plugin over SSH and optionally activate it with WP-CLI.
+description: Rsync the plugin over SSH and optionally activate with WP-CLI. Expects ssh-agent already loaded in the job (see workflow).
 
 inputs:
-  ssh_private_key:
-    description: Private key PEM used only for deployment
-    required: true
   ssh_host:
     required: true
   ssh_user:
@@ -27,17 +24,12 @@ runs:
     - name: Validate deploy inputs
       shell: bash
       env:
-        KEY: ${{ inputs.ssh_private_key }}
         HOST: ${{ inputs.ssh_host }}
         USER: ${{ inputs.ssh_user }}
         REMOTE_PLUGIN_PATH: ${{ inputs.ssh_remote_plugin_path }}
       run: |
         set -euo pipefail
         missing=0
-        if [ -z "${KEY}" ]; then
-          echo "::error::SSH_PRIVATE_KEY is empty. Add it for this job's GitHub Environment (e.g. production): Settings → Environments → production → Environment secrets. Or add repository secrets with the same names."
-          missing=1
-        fi
         if [ -z "${HOST}" ]; then
           echo "::error::SSH_HOST is empty. Add the SSH hostname as a secret."
           missing=1
@@ -53,11 +45,6 @@ runs:
         if [ "$missing" -ne 0 ]; then
           exit 1
         fi
-
-    - name: Start ssh-agent
-      uses: webfactory/ssh-agent@v0.9.0
-      with:
-        ssh-private-key: ${{ inputs.ssh_private_key }}
 
     - name: Trust host key and rsync
       shell: bash

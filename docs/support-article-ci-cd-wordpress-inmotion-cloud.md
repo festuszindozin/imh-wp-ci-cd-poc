@@ -37,7 +37,7 @@ The live site displays a small **release note in the footer** (and an admin noti
 1. A developer pushes a commit to the `main` or `staging` branch on GitHub.  
 2. GitHub Actions starts the workflow defined in `.github/workflows/deploy.yml`.  
 3. **Test job:** GitHub checks out the code, installs PHP dependencies with Composer, and runs PHPUnit. If any test fails, the workflow fails and **nothing is deployed**.  
-4. **Deploy job (only on pushes, not on pull requests):** After tests pass, the workflow writes a short **build marker file** (derived from the Git commit) into the plugin, then runs the shared **deploy** logic (see `.github/actions/deploy-inmotion-plugin/action.yml`): **rsync over SSH** to the plugin directory, then **optional WP-CLI** `plugin activate` when you have set `WORDPRESS_ROOT` on that GitHub Environment.  
+4. **Deploy job (only on pushes, not on pull requests):** After tests pass, the workflow writes a short **build marker file** (derived from the Git commit) into the plugin, loads the deploy key with **`webfactory/ssh-agent`** in `deploy.yml`, then runs the shared **deploy** logic (see `.github/actions/deploy-inmotion-plugin/action.yml`): **rsync over SSH** to the plugin directory, then **optional WP-CLI** `plugin activate` when you have set `WORDPRESS_ROOT` on that GitHub Environment.  
    - Push to **`main`** → GitHub Environment **`production`**  
    - Push to **`staging`** → GitHub Environment **`staging`**  
 5. Visitors see the updated footer text; administrators may also see a dashboard notice.
@@ -75,7 +75,7 @@ flowchart LR
 | `tests/` | Automated tests. A failing test **fails the pipeline**, which blocks deploy. |
 | `wp-content/plugins/inmotion-ci-cd-poc/` | The plugin that is deployed to production. |
 | `.github/workflows/deploy.yml` | Defines **PHPUnit**, **deploy to production** (`main`), and **deploy to staging** (`staging`). |
-| `.github/actions/deploy-inmotion-plugin/action.yml` | Shared steps: SSH agent, `rsync`, optional WP-CLI activate. |
+| `.github/actions/deploy-inmotion-plugin/action.yml` | Shared steps: validate host/path, `rsync`, optional WP-CLI activate (SSH agent runs in `deploy.yml` so the private key is not passed through composite inputs). |
 | `docs/support-article-ci-cd-wordpress-inmotion-cloud.md` | This article (you can publish it in your help center). |
 
 ---
